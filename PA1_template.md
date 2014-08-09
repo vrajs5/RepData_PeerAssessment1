@@ -7,6 +7,13 @@ Date: "Thursday, August 07, 2014"
 
 ### Part 0 : Data preparation
 
+Setting global options before we start working on project
+
+```r
+opts_chunk$set(eacho = TRUE, warning = FALSE, fig.width=12)
+```
+
+
 Following code reads data from *acticity.csv* file
 It convert reading to data.table for better processing
 
@@ -66,7 +73,7 @@ ggplot(data = summaryByDate) +
   geom_histogram(aes(x = Mean), binwidth = 3, color = 'black', fill = 'light green')
 ```
 
-![plot of chunk unnamed-chunk-4](figure/unnamed-chunk-4.png) 
+![plot of chunk unnamed-chunk-5](figure/unnamed-chunk-5.png) 
 
 #### Question 2. Calculate and report the mean and median total number of steps taken per day
 Following code will display mean and median of total steps taken per day
@@ -165,14 +172,105 @@ ggplot(summaryByTime) + geom_line(aes(x=time,y=Mean), size = 1, color = 'sea gre
   scale_x_datetime(labels = date_format("%H:%M"))
 ```
 
-![plot of chunk unnamed-chunk-6](figure/unnamed-chunk-6.png) 
+![plot of chunk unnamed-chunk-7](figure/unnamed-chunk-7.png) 
 
 #### Question 2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
 At **08:35:00** time maximum number of steps = **206**
 
 - - -
 
-### Part 3: Are there differences in activity patterns between weekdays and weekends?
+### Part 3: Imputing missing values
+#### Question 1. Calculate and report the total number of missing values in the dataset
+Following code will find out number of missing values for all variables and will display it in tabular manner
+
+```r
+NACounts = data.frame(NA_Count = apply(reading,2,function(x){sum(is.na(x))}))
+NACounts
+```
+
+```
+##           NA_Count
+## date             0
+## time             0
+## timestamp        0
+## steps         2304
+## interval         0
+```
+
+#### Question 2. A strategy for filling in all of the missing values in the dataset.
+Here for imputation we are assigning mean value for that time period accross all days to that time period.
+For example on 1st Oct 2012 at 00:00 there is not entry for step, 
+this would be replaced by mean of steps taken at 00:00 min
+
+#### Question 3. Create a new dataset that is equal to the original dataset but with the missing data filled in.
+Following code will create a new dataset readingAdj with steps adjusted as new columns AdjSteps.
+
+```r
+#Finding daily summary
+summaryByTime = reading[,list(Mean = as.numeric(mean(steps, na.rm = TRUE))), by = time] 
+
+#Adding time based mean column
+readingAdj = merge(reading, summaryByTime, by = 'time')
+
+#If steps value missing adjusting to mean of that time
+readingAdj$AdjSteps = ifelse(is.na(readingAdj$steps), readingAdj$Mean, readingAdj$steps)
+
+#Removing Mean column
+readingAdj$Mean = NULL
+
+#Sorting and reordining of columns
+readingAdj = readingAdj[order(timestamp),]
+setcolorder(readingAdj, c('date', 'time', 'timestamp', 'steps', 'interval', 'AdjSteps'))
+```
+
+#### Question 4. Comparision of adjusted dataset with original.
+Following set of code will find out total steps taken in normal case and after adjustments
+We are plotting both histograms side-by-side to make difference visible
+
+```r
+#Finding summary of steps after and before adjustment
+adjSummaryByDate = readingAdj[,list(TotalSteps = as.numeric(sum(steps,na.rm = TRUE)),
+                                    Mean = as.numeric(mean(steps, na.rm = TRUE)),
+                                    Median = as.numeric(median(steps, na.rm = TRUE)),
+                                    TotalStepsAdj = as.numeric(sum(AdjSteps,na.rm = TRUE)),
+                                    MeanAdj = as.numeric(mean(AdjSteps, na.rm = TRUE)),
+                                    MedianAdj = as.numeric(median(AdjSteps, na.rm = TRUE))), by = date]
+
+#Preparing a new variable for histogram
+forGraph = data.table(TypeData = c(rep(c('Original','Adjusted'),each = nrow(adjSummaryByDate))),
+                      Steps = c(adjSummaryByDate$TotalSteps, adjSummaryByDate$TotalStepsAdj))
+ggplot(data = forGraph) + facet_grid(TypeData~.) +
+  geom_histogram(aes(x = Steps), color = 'black', fill = 'light green')
+```
+
+```
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
+```
+
+![plot of chunk unnamed-chunk-10](figure/unnamed-chunk-10.png) 
+
+Following code will print mean, median, standard deviation of steps in both scenario
+
+```r
+readingAdj[,list(Mean_Without_Adj = mean(steps, na.rm=TRUE), Mean_With_Adj = mean(AdjSteps),
+                 Median_Without_Adj = median(steps, na.rm=TRUE), Median_With_Adj = median(AdjSteps),
+                 Std_Dev_Without_Adj = sd(steps, na.rm=TRUE), Std_Dev_With_Adj = sd(AdjSteps))]
+```
+
+```
+##    Mean_Without_Adj Mean_With_Adj Median_Without_Adj Median_With_Adj
+## 1:            37.38         37.38                  0               0
+##    Std_Dev_Without_Adj Std_Dev_With_Adj
+## 1:                 112            105.3
+```
+From above table and histogram, we can see that imputing missing value changes behavior of the data.
+
+Total number of steps taken in earlier case were **570608**  
+Total number of steps taken in after adjustment were **6.5674 &times; 10<sup>5</sup>**
+- - -
+
+### Part 4: Are there differences in activity patterns between weekdays and weekends?
 #### Question 1. Create a new factor variable in the dataset with two levels indicating whether a given date is a weekday or weekend day.
 Following code will create factor from date
 
@@ -200,4 +298,4 @@ ggplot(summaryByTimeByDay) + geom_line(aes(x=time,y=Mean, color = Day), size = 1
   scale_x_datetime(labels = date_format("%H:%M")) + theme(legend.position="none")
 ```
 
-![plot of chunk unnamed-chunk-8](figure/unnamed-chunk-8.png) 
+![plot of chunk unnamed-chunk-13](figure/unnamed-chunk-13.png) 
