@@ -1,3 +1,14 @@
+##Assignment Submission Comments
+I have submitted following files
+ 1. PA1_template.Rmd
+ 2. PA1_template.md
+ 3. PA1_template.html
+ 4. figure/* - 3 graph image
+ 
+I have used following packages for assignment
+ 1. data.table - for easy data summarization
+ 2. ggplot2 - for better graphs
+
 ## Introduction
 
 It is now possible to collect a large amount of data about personal
